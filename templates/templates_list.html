@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+
+{% block title %}所有模板{% endblock %}
+
+{% block content %}
+<div class="container">
+    <a href="/" class="back-link">← 返回搜索</a>
+    <h1>所有模板文件</h1>
+
+    <div class="toolbar">
+        <div style="margin-bottom: 10px;">
+            <label for="version_status">版本:</label>
+            <select id="version_status" onchange="filterTemplates()">
+                <option value="all" {% if version_status == 'all' %}selected{% endif %}>全部</option>
+                <option value="new" {% if version_status == 'new' %}selected{% endif %}>新版本</option>
+                <option value="old" {% if version_status == 'old' %}selected{% endif %}>旧版本</option>
+            </select>
+            
+            <label for="project" style="margin-left: 15px;">项目:</label>
+            <select id="project" onchange="filterTemplates()">
+                <option value="all">全部</option>
+                {% for proj in all_projects %}
+                <option value="{{ proj }}" {% if project == proj %}selected{% endif %}>{{ proj }}</option>
+                {% endfor %}
+            </select>
+            
+            <label for="status" style="margin-left: 15px;">状态:</label>
+            <select id="status" onchange="filterTemplates()">
+                <option value="all" {% if status == 'all' %}selected{% endif %}>全部</option>
+                <option value="active" {% if status == 'active' %}selected{% endif %}>使用中</option>
+                <option value="deprecated" {% if status == 'deprecated' %}selected{% endif %}>已废弃</option>
+            </select>
+        </div>
+
+        <button class="batch-btn" id="batchEditBtn" onclick="openBatchEdit()" disabled>
+            批量编辑选中 (<span id="selectedCount">0</span>)
+        </button>
+        <button class="batch-btn" onclick="selectAll()">全选</button>
+        <button class="batch-btn" onclick="deselectAll()">取消全选</button>
+        <div class="stats">
+            总计: {{ templates|length }} 个模板
+        </div>
+    </div>
+
+    <table>
+        <tr>
+            <th style="width: 40px;"><input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()"></th>
+            <th>文件路径</th>
+            <th>模板名称</th>
+            <th>字段数</th>
+            <th>版本</th>
+            <th>项目</th>
+            <th>状态</th>
+            <th>描述</th>
+            <th>操作</th>
+        </tr>
+        {% for template in templates %}
+        <tr>
+            <td><input type="checkbox" class="row-checkbox" value="{{ template.file_path }}" onchange="updateSelectedCount()"></td>
+            <td>{{ template.file_path }}</td>
+            <td>{{ template.tpl_name }}</td>
+            <td>{{ template.field_count }}</td>
+            <td>
+                {% if template.version_status == 'new' %}
+                <span class="version-badge-new">新</span>
+                {% else %}
+                <span class="version-badge-old">旧</span>
+                {% endif %}
+            </td>
+            <td>{{ template.project if template.project else '-' }}</td>
+            <td>
+                {% if template.is_deprecated %}
+                <span class="deprecated-badge">已废弃</span>
+                {% else %}
+                使用中
+                {% endif %}
+            </td>
+            <td>{{ template.description if template.description else '-' }}</td>
+            <td>
+                <button class="show-fields-btn" onclick='showFields({{ template.id }}, "{{ template.file_path }}", "{{ template.tpl_name }}", {{ template.field_count }})'>
+                    查看字段
+                </button>
+                <button class="edit-btn" onclick="openEditModal('{{ template.file_path }}', '{{ template.project }}', {{ template.is_deprecated }}, '{{ template.description }}', '{{ template.version_status }}')">
+                    编辑
+                </button>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+
+<!-- Fields Modal -->
+<div id="fieldsModal" class="fields-modal">
+    <div class="fields-modal-content">
+        <div class="modal-header">
+            <span id="fieldsModalTitle">模板字段</span>
+            <button class="cancel-btn" onclick="closeFieldsModal()" style="float: right;">关闭</button>
+        </div>
+        <div id="fieldsModalContent" style="margin-top: 15px;">
+        </div>
+    </div>
+</div>
+
+<!-- Single Edit Modal -->
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">编辑文件属性</div>
+        <form id="editForm">
+            <input type="hidden" id="edit_file_path" name="file_path">
+            <div class="form-group">
+                <label for="edit_project">项目:</label>
+                <input type="text" id="edit_project" name="project" placeholder="输入项目名称">
+            </div>
+            <div class="form-group">
+                <label for="edit_version_status">版本状态:</label>
+                <select id="edit_version_status" name="version_status">
+                    <option value="new">新版本</option>
+                    <option value="old">旧版本</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="edit_is_deprecated">状态:</label>
+                <select id="edit_is_deprecated" name="is_deprecated">
+                    <option value="0">使用中</option>
+                    <option value="1">已废弃</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="edit_description">描述:</label>
+                <textarea id="edit_description" name="description" placeholder="输入描述信息"></textarea>
+            </div>
+            <div class="button-group">
+                <button type="button" class="cancel-btn" onclick="closeEditModal()">取消</button>
+                <button type="button" class="save-btn" onclick="saveAttributes()">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Batch Edit Modal -->
+<div id="batchEditModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">批量编辑属性</div>
+        <div style="background-color: #e3f2fd; padding: 10px; border-radius: 3px; margin-bottom: 15px;">
+            <strong>提示:</strong> 这将更新 <span id="batchCount">0</span> 个选中的模板。
+            留空的字段将保持原值。
+        </div>
+        <form id="batchEditForm">
+            <div class="form-group">
+                <label for="batch_project">项目 (可选):</label>
+                <input type="text" id="batch_project" name="project" placeholder="留空保持原值">
+            </div>
+            <div class="form-group">
+                <label for="batch_version_status">版本状态 (可选):</label>
+                <select id="batch_version_status" name="version_status">
+                    <option value="">保持原值</option>
+                    <option value="new">新版本</option>
+                    <option value="old">旧版本</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="batch_is_deprecated">状态 (可选):</label>
+                <select id="batch_is_deprecated" name="is_deprecated">
+                    <option value="">保持原值</option>
+                    <option value="0">使用中</option>
+                    <option value="1">已废弃</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="batch_description">描述 (可选):</label>
+                <textarea id="batch_description" name="description" placeholder="留空保持原值"></textarea>
+            </div>
+            <div class="button-group">
+                <button type="button" class="cancel-btn" onclick="closeBatchEditModal()">取消</button>
+                <button type="button" class="save-btn" onclick="saveBatchAttributes()">全部保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 存储所有模板的字段数据
+    const templatesFields = {};
+    {% for template in templates %}
+    templatesFields[{{ template.id }}] = {{ template.fields|tojson }};
+    {% endfor %}
+</script>
+{% endblock %}

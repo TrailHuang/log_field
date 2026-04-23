@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}JSON字段搜索{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 style="display: inline-block;">JSON字段搜索</h1>
+    <a href="/templates" class="nav-link">查看所有模板</a>
+    <form method="post" style="margin-top: 20px;">
+    <label for="field_name">字段名称:</label>
+    <input type="text" id="field_name" name="field_name" value="{{ field_name }}" list="fields">
+    <datalist id="fields">
+        {% for field in all_fields %}
+        <option value="{{ field }}">
+        {% endfor %}
+    </datalist>
+
+    <div class="filter-group">
+        <label for="version_status">版本:</label>
+        <select id="version_status" name="version_status">
+            <option value="all" {% if version_status == 'all' %}selected{% endif %}>全部</option>
+            <option value="new" {% if version_status == 'new' %}selected{% endif %}>新版本</option>
+            <option value="old" {% if version_status == 'old' %}selected{% endif %}>旧版本</option>
+        </select>
+    </div>
+
+    <div class="filter-group">
+        <label for="project">项目:</label>
+        <select id="project" name="project">
+            <option value="all">全部</option>
+            {% for proj in all_projects %}
+            <option value="{{ proj }}" {% if project == proj %}selected{% endif %}>{{ proj }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="filter-group">
+        <label for="status">状态:</label>
+        <select id="status" name="status">
+            <option value="all" {% if status == 'all' %}selected{% endif %}>全部</option>
+            <option value="active" {% if status == 'active' %}selected{% endif %}>使用中</option>
+            <option value="deprecated" {% if status == 'deprecated' %}selected{% endif %}>已废弃</option>
+        </select>
+    </div>
+
+    <input type="submit" value="搜索" style="margin-left: 10px;">
+</form>
+
+{% if field_name %}
+<div class="count">找到 {{ count }} 个 "{{ field_name }}" 的出现</div>
+{% endif %}
+
+{% if results %}
+<div class="results">
+    <h2>搜索结果</h2>
+    <table>
+        <tr>
+            <th>文件路径</th>
+            <th>模板名称</th>
+            <th>版本</th>
+            <th>项目</th>
+            <th>状态</th>
+            <th>描述</th>
+            <th>操作</th>
+        </tr>
+        {% for result in results %}
+        <tr>
+            <td>{{ result.file_path }}</td>
+            <td>{{ result.tpl_name }}</td>
+            <td>
+                {% if result.version_status == 'new' %}
+                <span class="version-badge-new">新</span>
+                {% else %}
+                <span class="version-badge-old">旧</span>
+                {% endif %}
+            </td>
+            <td>{{ result.project if result.project else '-' }}</td>
+            <td>
+                {% if result.is_deprecated %}
+                <span class="deprecated-badge">已废弃</span>
+                {% else %}
+                使用中
+                {% endif %}
+            </td>
+            <td>{{ result.description if result.description else '-' }}</td>
+            <td>
+                <button class="edit-btn" onclick="openEditModal('{{ result.file_path }}', '{{ result.project }}', {{ result.is_deprecated }}, '{{ result.description }}', '{{ result.version_status }}')">
+                    编辑
+                </button>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+{% elif field_name %}
+<div class="results">
+    <h2>搜索结果</h2>
+    <p>未找到 "{{ field_name }}" 的结果</p>
+</div>
+{% endif %}
+
+<!-- Edit Modal -->
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">编辑文件属性</div>
+        <form id="editForm">
+            <input type="hidden" id="edit_file_path" name="file_path">
+            <div class="form-group">
+                <label for="edit_project">项目:</label>
+                <input type="text" id="edit_project" name="project" placeholder="输入项目名称">
+            </div>
+            <div class="form-group">
+                <label for="edit_version_status">版本状态:</label>
+                <select id="edit_version_status" name="version_status">
+                    <option value="new">新版本</option>
+                    <option value="old">旧版本</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="edit_is_deprecated">状态:</label>
+                <select id="edit_is_deprecated" name="is_deprecated">
+                    <option value="0">使用中</option>
+                    <option value="1">已废弃</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="edit_description">描述:</label>
+                <textarea id="edit_description" name="description" placeholder="输入描述信息"></textarea>
+            </div>
+            <div class="button-group">
+                <button type="button" class="cancel-btn" onclick="closeEditModal()">取消</button>
+                <button type="button" class="save-btn" onclick="saveAttributes()">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+</div>
+{% endblock %}
