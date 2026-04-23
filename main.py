@@ -6,6 +6,9 @@ from flask import Flask, request, render_template
 
 app = Flask(__name__)
 
+# 注册 Jinja2 自定义过滤器
+app.jinja_env.filters['basename'] = lambda path: os.path.basename(path)
+
 # 统一数据库路径常量，避免硬编码和相对路径不确定性
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'json_fields.db')
 

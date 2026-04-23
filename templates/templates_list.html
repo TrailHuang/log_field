@@ -8,8 +8,10 @@
     <h1>所有模板文件</h1>
 
     <div class="toolbar">
-        <div style="margin-bottom: 10px;">
-            <label for="version_status">版本:</label>
+        <div class="toolbar-row">
+            <label for="search_input">搜索:</label>
+            <input type="text" id="search_input" placeholder="输入关键词过滤模板..." oninput="filterBySearch()">
+            <label for="version_status" style="margin-left: 15px;">版本:</label>
             <select id="version_status" onchange="filterTemplates()">
                 <option value="all" {% if version_status == 'all' %}selected{% endif %}>全部</option>
                 <option value="new" {% if version_status == 'new' %}selected{% endif %}>新版本</option>
@@ -38,11 +40,12 @@
         <button class="batch-btn" onclick="selectAll()">全选</button>
         <button class="batch-btn" onclick="deselectAll()">取消全选</button>
         <div class="stats">
-            总计: {{ templates|length }} 个模板
+            显示: <span id="visibleCount">{{ templates|length }}</span> / {{ templates|length }} 个模板
         </div>
     </div>
 
     <table>
+        <thead>
         <tr>
             <th style="width: 40px;"><input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()"></th>
             <th>文件路径</th>
@@ -54,11 +57,13 @@
             <th>描述</th>
             <th>操作</th>
         </tr>
+        </thead>
+        <tbody id="templatesTableBody">
         {% for template in templates %}
-        <tr>
+        <tr class="template-row" data-filename="{{ template.file_path|basename|lower }}" data-tplname="{{ template.tpl_name|lower }}">
             <td><input type="checkbox" class="row-checkbox" value="{{ template.file_path }}" onchange="updateSelectedCount()"></td>
-            <td>{{ template.file_path }}</td>
-            <td>{{ template.tpl_name }}</td>
+            <td class="col-filepath">{{ template.file_path }}</td>
+            <td class="col-tplname">{{ template.tpl_name }}</td>
             <td>{{ template.field_count }}</td>
             <td>
                 {% if template.version_status == 'new' %}
@@ -86,6 +91,7 @@
             </td>
         </tr>
         {% endfor %}
+        </tbody>
     </table>
 </div>
 
@@ -186,5 +192,70 @@
     {% for template in templates %}
     templatesFields[{{ template.id }}] = {{ template.fields|tojson }};
     {% endfor %}
+
+    // 模糊搜索过滤 — 仅匹配文件名（去掉路径）和模板名，并高亮匹配内容
+    function filterBySearch() {
+        const keyword = document.getElementById('search_input').value.trim().toLowerCase();
+        const rows = document.querySelectorAll('.template-row');
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            const filename = row.getAttribute('data-filename');
+            const tplname = row.getAttribute('data-tplname');
+            const matched = !keyword || filename.includes(keyword) || tplname.includes(keyword);
+
+            if (matched) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+
+            // 高亮匹配文本
+            const filepathCell = row.querySelector('.col-filepath');
+            const tplnameCell = row.querySelector('.col-tplname');
+            highlightText(filepathCell, keyword, row.getAttribute('data-filename'));
+            highlightText(tplnameCell, keyword, tplname);
+        });
+
+        document.getElementById('visibleCount').textContent = visibleCount;
+    }
+
+    // 在单元格中高亮匹配的关键词
+    // fullTextLower: 该列用于匹配的完整小写文本（如 data-filename / data-tplname）
+    // 注意：单元格展示的可能是带路径的原文，需要定位关键词在原文中的位置
+    function highlightText(cell, keyword, matchSource) {
+        if (!cell) return;
+        const original = cell.getAttribute('data-original') || cell.textContent;
+        if (!cell.getAttribute('data-original')) {
+            cell.setAttribute('data-original', original);
+        }
+
+        if (!keyword) {
+            cell.innerHTML = original;
+            return;
+        }
+
+        const lowerOriginal = original.toLowerCase();
+        const lowerKeyword = keyword.toLowerCase();
+        let result = '';
+        let lastIdx = 0;
+        let idx = lowerOriginal.indexOf(lowerKeyword);
+
+        while (idx !== -1) {
+            result += escapeHtml(original.substring(lastIdx, idx));
+            result += '<mark class="search-highlight">' + escapeHtml(original.substring(idx, idx + keyword.length)) + '</mark>';
+            lastIdx = idx + keyword.length;
+            idx = lowerOriginal.indexOf(lowerKeyword, lastIdx);
+        }
+        result += escapeHtml(original.substring(lastIdx));
+        cell.innerHTML = result;
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
 </script>
 {% endblock %}

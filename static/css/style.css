@@ -234,6 +234,43 @@ tr:hover {
     flex-wrap: wrap;
 }
 
+.toolbar-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+    width: 100%;
+}
+
+#search_input {
+    padding: 8px 12px;
+    border: 2px solid #2196F3;
+    border-radius: 4px;
+    font-size: 14px;
+    width: 260px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+}
+
+#search_input:focus {
+    border-color: #1976D2;
+    box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.15);
+}
+
+#search_input::placeholder {
+    color: #aaa;
+}
+
+/* 搜索高亮 */
+mark.search-highlight {
+    background-color: #FFEB3B;
+    color: inherit;
+    padding: 1px 2px;
+    border-radius: 2px;
+    font-weight: bold;
+}
+
 /* 模态框样式 */
 .modal {
     display: none;
